@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Formulario CRUD Productos</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .form-container { max-width: 900px; margin: auto; margin-top: 2rem; }
+    .scroll-table { max-height: 300px; overflow-y: auto; }
+    th, td { vertical-align: middle; }
+  </style>
+</head>
+<body>
+
+  <div class="container form-container shadow p-4 bg-white rounded">
+    <h3 class="text-center mb-4">Formulario de Productos</h3>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <label class="form-label">Nombre</label>
+        <input type="text" id="nombre_producto" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Precio</label>
+        <input type="number" id="precio" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Categoría</label>
+        <select id="categoria" class="form-select"></select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Descripción</label>
+        <input type="text" id="descripcion" class="form-control">
+      </div>
+    </div>
+
+    <div class="text-end">
+      <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+    </div>
+  </div>
+
+  <div class="container mt-4">
+    <h5>Listado de productos</h5>
+    <div class="table-responsive scroll-table border rounded">
+      <table class="table table-bordered table-striped table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Precio</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-productos"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Token inválido o sesión expirada');
+      window.location.href = 'login.html';
+    }
+
+    async function cargarCategorias() {
+      const res = await fetch('/categorias');
+      const categorias = await res.json();
+      const select = document.getElementById('categoria');
+      select.innerHTML = categorias.map(cat =>
+        `<option value="${cat}">${cat}</option>`
+      ).join('');
+    }
+
+    async function cargarProductos() {
+      const res = await fetch('/productos', {
+        headers: { 'x-api-key': token }
+      });
+      if (!res.ok) {
+        alert("Token inválido o sesión expirada");
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const productos = await res.json();
+      const tbody = document.getElementById('tabla-productos');
+      tbody.innerHTML = productos.map(p => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.nombre_producto}</td>
+          <td>$${p.precio}</td>
+          <td>
+            <button class="btn btn-sm btn-warning" onclick="editarProducto(${p.id})">Editar</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${p.id})">Eliminar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function guardarProducto() {
+      const data = {
+        nombre_producto: document.getElementById('nombre_producto').value,
+        descripcion: document.getElementById('descripcion').value,
+        categoria: document.getElementById('categoria').value,
+        precio: document.getElementById('precio').value
+      };
+
+      const res = await fetch('/productos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': token
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        cargarProductos();
+        document.getElementById('nombre_producto').value = '';
+        document.getElementById('descripcion').value = '';
+        document.getElementById('precio').value = '';
+      } else {
+        alert('Error al guardar');
+      }
+    }
+
+    async function eliminarProducto(id) {
+      if (!confirm("¿Eliminar este producto?")) return;
+      const res = await fetch(`/productos/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-api-key': token }
+      });
+      if (res.ok) cargarProductos();
+    }
+
+    function editarProducto(id) {
+      alert("Función editar aún no implementada.");
+    }
+
+    cargarCategorias();
+    cargarProductos();
+  </script>
+
+</body>
+</html>
