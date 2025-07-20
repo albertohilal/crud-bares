@@ -17,6 +17,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Obtener categorías (sin token)
 app.get('/categorias', async (req, res) => {
   try {
     const [categorias] = await pool.query('SELECT nombre FROM aa_menu_categorias ORDER BY nombre ASC');
@@ -27,16 +28,16 @@ app.get('/categorias', async (req, res) => {
   }
 });
 
+// Obtener productos por slug
 app.get('/productos', async (req, res) => {
-  const token = req.headers['x-api-key'];
-  if (!token) return res.status(401).json({ error: 'Token faltante' });
+  const slug = req.query.slug;
+  if (!slug) return res.status(400).json({ error: 'Falta el parámetro slug' });
 
   try {
-    const [clientes] = await pool.query("SELECT * FROM aa_clientes_autorizados WHERE clave_api = ? AND activo = 1", [token]);
-    if (clientes.length === 0) return res.status(403).json({ error: 'Token inválido' });
-
-    const slug = clientes[0].cliente_slug;
-    const [productos] = await pool.query("SELECT * FROM aa_menu_productos WHERE cliente_slug = ? ORDER BY categoria, nombre_producto", [slug]);
+    const [productos] = await pool.query(
+      "SELECT * FROM aa_menu_productos WHERE cliente_slug = ? ORDER BY categoria, nombre_producto",
+      [slug]
+    );
     res.json(productos);
   } catch (err) {
     console.error(err);
@@ -44,37 +45,53 @@ app.get('/productos', async (req, res) => {
   }
 });
 
-app.post('/productos', async (req, res) => {
-  const token = req.headers['x-api-key'];
-  if (!token) return res.status(401).json({ error: 'Token faltante' });
+// Guardar (insertar o actualizar) producto según presencia de ID
+app.post('/guardar-producto', async (req, res) => {
+  const { id, nombre, descripcion, categoria, precio, slug } = req.body;
+
+  if (!slug) return res.status(400).json({ error: 'Falta el slug del cliente' });
 
   try {
-    const [clientes] = await pool.query("SELECT * FROM aa_clientes_autorizados WHERE clave_api = ? AND activo = 1", [token]);
-    if (clientes.length === 0) return res.status(403).json({ error: 'Token inválido' });
+    const [clientes] = await pool.query("SELECT id FROM aa_clientes_autorizados WHERE cliente_slug = ?", [slug]);
+    if (clientes.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    const slug = clientes[0].cliente_slug;
-    const { nombre_producto, descripcion, categoria, precio } = req.body;
-    await pool.query(
-      "INSERT INTO aa_menu_productos (cliente_slug, nombre_producto, descripcion, categoria, precio) VALUES (?, ?, ?, ?, ?)",
-      [slug, nombre_producto, descripcion, categoria, precio]
-    );
-    res.sendStatus(201);
+    const cliente_id = clientes[0].id;
+
+    if (id) {
+      // Actualización
+      await pool.query(
+        "UPDATE aa_menu_productos SET nombre_producto = ?, descripcion = ?, categoria = ?, precio = ? WHERE id = ? AND cliente_id = ?",
+        [nombre, descripcion, categoria, precio, id, cliente_id]
+      );
+      res.json({ mensaje: 'Producto actualizado correctamente' });
+    } else {
+      // Inserción
+      await pool.query(
+        `INSERT INTO aa_menu_productos 
+         (cliente_id, cliente_slug, nombre_producto, descripcion, categoria, precio, visible, fecha_creacion) 
+         VALUES (?, ?, ?, ?, ?, ?, 1, NOW())`,
+        [cliente_id, slug, nombre, descripcion, categoria, precio]
+      );
+      res.json({ mensaje: 'Producto creado correctamente' });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al guardar producto' });
   }
 });
 
+// Eliminar producto (requiere cliente_slug para verificar autoría)
 app.delete('/productos/:id', async (req, res) => {
-  const token = req.headers['x-api-key'];
-  if (!token) return res.status(401).json({ error: 'Token faltante' });
+  const { id } = req.params;
+  const { slug } = req.query;
+
+  if (!slug) return res.status(400).json({ error: 'Falta el parámetro slug' });
 
   try {
-    const [clientes] = await pool.query("SELECT * FROM aa_clientes_autorizados WHERE clave_api = ? AND activo = 1", [token]);
-    if (clientes.length === 0) return res.status(403).json({ error: 'Token inválido' });
+    const [cliente] = await pool.query("SELECT id FROM aa_clientes_autorizados WHERE cliente_slug = ?", [slug]);
+    if (cliente.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-    const slug = clientes[0].cliente_slug;
-    await pool.query("DELETE FROM aa_menu_productos WHERE id = ? AND cliente_slug = ?", [req.params.id, slug]);
+    await pool.query("DELETE FROM aa_menu_productos WHERE id = ? AND cliente_slug = ?", [id, slug]);
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
