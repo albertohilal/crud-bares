@@ -104,7 +104,7 @@
         id: id || null,
         nombre: document.getElementById('nombre_producto').value,
         descripcion: document.getElementById('descripcion').value,
-        categoria: document.getElementById('categoria').value,
+        categoria: Number(document.getElementById('categoria').value),
         precio: document.getElementById('precio').value,
         slug: slug
       };
