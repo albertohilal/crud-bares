@@ -57,7 +57,7 @@ app.get("/subtipos-vino", async (req, res) => {
   }
 });
 
-// Obtener productos por cliente_slug
+// ✅ Obtener productos por cliente_slug (modificado con JOIN de categorías)
 app.get("/productos/:slug", async (req, res) => {
   const slug = req.params.slug;
   try {
@@ -68,11 +68,13 @@ app.get("/productos/:slug", async (req, res) => {
         p.descripcion,
         p.precio,
         p.categoria,
+        c.nombre AS nombre_categoria,
         p.bodega_id,
-        p.subcategoria_tipo_id,
         b.nombre AS nombre_bodega,
+        p.subcategoria_tipo_id,
         s.nombre AS nombre_subtipo
       FROM aa_menu_productos p
+      LEFT JOIN aa_menu_categorias c ON p.categoria = c.id
       LEFT JOIN aa_bodegas b ON p.bodega_id = b.id
       LEFT JOIN aa_subtipos_vino s ON p.subcategoria_tipo_id = s.id
       WHERE p.cliente_slug = ?

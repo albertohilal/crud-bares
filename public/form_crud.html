@@ -113,7 +113,7 @@
         tr.innerHTML = `
           <td>${prod.id}</td>
           <td>${prod.nombre_producto}</td>
-          <td>${prod.categoria || "-"}</td>
+          <td>${prod.nombre_categoria || "-"}</td>
           <td>${prod.nombre_bodega || "-"}</td>
           <td>${prod.nombre_subtipo || "-"}</td>
           <td>$${parseFloat(prod.precio || 0).toFixed(2)}</td>
