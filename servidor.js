@@ -57,7 +57,7 @@ app.get("/subtipos-vino", async (req, res) => {
   }
 });
 
-// ✅ Obtener productos por cliente_slug (modificado con JOIN de categorías)
+// Obtener productos por cliente_slug
 app.get("/productos/:slug", async (req, res) => {
   const slug = req.params.slug;
   try {
@@ -67,6 +67,8 @@ app.get("/productos/:slug", async (req, res) => {
         p.nombre_producto,
         p.descripcion,
         p.precio,
+        p.precio_chico,
+        p.precio_grande,
         p.categoria,
         c.nombre AS nombre_categoria,
         p.bodega_id,
@@ -108,6 +110,8 @@ app.post("/producto", async (req, res) => {
     nombre_producto,
     descripcion,
     precio,
+    precio_chico,
+    precio_grande,
     categoria,
     bodega_id,
     subcategoria_tipo_id,
@@ -117,12 +121,14 @@ app.post("/producto", async (req, res) => {
   try {
     const [result] = await pool.query(`
       INSERT INTO aa_menu_productos 
-        (nombre_producto, descripcion, precio, categoria, bodega_id, subcategoria_tipo_id, cliente_slug, visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        (nombre_producto, descripcion, precio, precio_chico, precio_grande, categoria, bodega_id, subcategoria_tipo_id, cliente_slug, visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `, [
       nombre_producto,
       descripcion,
       precio,
+      precio_chico,
+      precio_grande,
       categoria,
       bodega_id || null,
       subcategoria_tipo_id || null,
@@ -143,6 +149,8 @@ app.put("/producto", async (req, res) => {
     nombre_producto,
     descripcion,
     precio,
+    precio_chico,
+    precio_grande,
     categoria,
     bodega_id,
     subcategoria_tipo_id,
@@ -155,6 +163,8 @@ app.put("/producto", async (req, res) => {
         nombre_producto = ?,
         descripcion = ?,
         precio = ?,
+        precio_chico = ?,
+        precio_grande = ?,
         categoria = ?,
         bodega_id = ?,
         subcategoria_tipo_id = ?,
@@ -164,6 +174,8 @@ app.put("/producto", async (req, res) => {
       nombre_producto,
       descripcion,
       precio,
+      precio_chico,
+      precio_grande,
       categoria,
       bodega_id || null,
       subcategoria_tipo_id || null,
