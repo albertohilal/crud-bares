@@ -50,6 +50,7 @@
           <tr>
             <th>ID</th>
             <th>Nombre</th>
+            <th>Categoría</th>
             <th>Precio</th>
             <th>Acciones</th>
           </tr>
@@ -67,9 +68,7 @@
       const res = await fetch('/categorias');
       const categorias = await res.json();
       const select = document.getElementById('categoria');
-      select.innerHTML = categorias.map(cat =>
-        `<option value="${cat}">${cat}</option>`
-      ).join('');
+      select.innerHTML = categorias.map(cat => `<option value="${cat.id}">${cat.nombre}</option>`).join('');
     }
 
     async function cargarProductos() {
@@ -80,6 +79,7 @@
         <tr>
           <td>${p.id}</td>
           <td>${p.nombre_producto}</td>
+          <td>${p.nombre_categoria || ''}</td>
           <td>$${p.precio}</td>
           <td>
             <button class="btn btn-sm btn-warning" onclick='editarProducto(${JSON.stringify(p)})'>Editar</button>
@@ -111,9 +111,7 @@
 
       const res = await fetch('/guardar-producto', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
 
@@ -133,7 +131,7 @@
 
     async function eliminarProducto(id) {
       if (!confirm("¿Eliminar este producto?")) return;
-      const res = await fetch(`/productos/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/productos/${id}?slug=${slug}`, { method: 'DELETE' });
       if (res.ok) cargarProductos();
     }
 

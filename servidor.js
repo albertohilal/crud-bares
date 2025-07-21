@@ -17,25 +17,29 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// Obtener categorías (sin token)
+// Obtener categorías
 app.get('/categorias', async (req, res) => {
   try {
-    const [categorias] = await pool.query('SELECT nombre FROM aa_menu_categorias ORDER BY nombre ASC');
-    res.json(categorias.map(cat => cat.nombre));
+    const [categorias] = await pool.query('SELECT id, nombre FROM aa_menu_categorias WHERE visible = 1 ORDER BY orden ASC');
+    res.json(categorias);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al obtener categorías' });
   }
 });
 
-// Obtener productos por slug
+// Obtener productos por slug con nombre de categoría
 app.get('/productos', async (req, res) => {
   const slug = req.query.slug;
   if (!slug) return res.status(400).json({ error: 'Falta el parámetro slug' });
 
   try {
     const [productos] = await pool.query(
-      "SELECT * FROM aa_menu_productos WHERE cliente_slug = ? ORDER BY categoria, nombre_producto",
+      `SELECT p.*, c.nombre AS nombre_categoria
+       FROM aa_menu_productos p
+       LEFT JOIN aa_menu_categorias c ON p.categoria = c.id
+       WHERE p.cliente_slug = ?
+       ORDER BY c.orden, p.nombre_producto`,
       [slug]
     );
     res.json(productos);
@@ -45,7 +49,7 @@ app.get('/productos', async (req, res) => {
   }
 });
 
-// Guardar (insertar o actualizar) producto según presencia de ID
+// Guardar (insertar o actualizar) producto
 app.post('/guardar-producto', async (req, res) => {
   const { id, nombre, descripcion, categoria, precio, slug } = req.body;
 
@@ -80,7 +84,7 @@ app.post('/guardar-producto', async (req, res) => {
   }
 });
 
-// Eliminar producto (requiere cliente_slug para verificar autoría)
+// Eliminar producto
 app.delete('/productos/:id', async (req, res) => {
   const { id } = req.params;
   const { slug } = req.query;
