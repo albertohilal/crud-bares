@@ -1,114 +1,184 @@
-require('dotenv').config();
-const express = require('express');
-const mysql = require('mysql2/promise');
-const app = express();
+const express = require("express");
+const mysql = require("mysql2/promise");
+const cors = require("cors");
+require("dotenv").config();
 
+const app = express();
+app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static("public"));
+
+console.log("Variables de entorno cargadas:", {
+  DB_HOST: process.env.DB_HOST,
+  DB_USER: process.env.DB_USER,
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_DATABASE: process.env.DB_DATABASE,
+  DB_PORT: process.env.DB_PORT,
+});
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  port: process.env.DB_PORT,
 });
 
-// Obtener categorías visibles y ordenadas
-app.get('/categorias', async (req, res) => {
+// Ruta: Categorías
+app.get("/categorias", async (req, res) => {
   try {
-    const [categorias] = await pool.query(
-      'SELECT id, nombre FROM aa_menu_categorias WHERE visible = 1 ORDER BY orden ASC'
-    );
-    res.json(categorias);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al obtener categorías' });
+    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias");
+    res.json(rows);
+  } catch (error) {
+    console.error("Error al obtener categorías:", error);
+    res.status(500).json({ error: "Error al obtener categorías" });
   }
 });
 
-// Obtener productos por slug con JOIN a categoría
-app.get('/productos', async (req, res) => {
+// Ruta: Bodegas
+app.get("/bodegas", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM aa_bodegas");
+    res.json(rows);
+  } catch (error) {
+    console.error("Error al obtener bodegas:", error);
+    res.status(500).json({ error: "Error al obtener bodegas" });
+  }
+});
+
+// Ruta: Subtipos
+app.get("/subtipos", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM aa_subtipos_vino");
+    res.json(rows);
+  } catch (error) {
+    console.error("Error al obtener subtipos:", error);
+    res.status(500).json({ error: "Error al obtener subtipos" });
+  }
+});
+
+// Ruta: Listar productos por slug
+app.get("/productos", async (req, res) => {
   const slug = req.query.slug;
-  if (!slug) return res.status(400).json({ error: 'Falta el parámetro slug' });
-
   try {
-    const [productos] = await pool.query(
-      `SELECT p.*, c.nombre AS nombre_categoria
-       FROM aa_menu_productos p
-       LEFT JOIN aa_menu_categorias c ON p.categoria = c.id
-       WHERE p.cliente_slug = ?
-       ORDER BY c.orden, p.nombre_producto`,
+    const [rows] = await pool.query(
+      "SELECT * FROM aa_menu_productos WHERE cliente_slug = ?",
       [slug]
     );
-    res.json(productos);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al obtener productos' });
+    res.json(rows);
+  } catch (error) {
+    console.error("Error al obtener productos:", error);
+    res.status(500).json({ error: "Error al obtener productos" });
   }
 });
 
-// Insertar o actualizar producto
-app.post('/guardar-producto', async (req, res) => {
-  const { id, nombre, descripcion, categoria, precio, slug } = req.body;
-  if (!slug) return res.status(400).json({ error: 'Falta el slug del cliente' });
-
-  try {
-    const [clientes] = await pool.query(
-      "SELECT id FROM aa_clientes_autorizados WHERE cliente_slug = ?",
-      [slug]
-    );
-    if (clientes.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
-
-    const cliente_id = clientes[0].id;
-
-    if (id) {
-      // Actualizar
-      await pool.query(
-        `UPDATE aa_menu_productos
-         SET nombre_producto = ?, descripcion = ?, categoria = ?, precio = ?
-         WHERE id = ? AND cliente_id = ?`,
-        [nombre, descripcion, categoria, precio, id, cliente_id]
-      );
-      res.json({ mensaje: 'Producto actualizado correctamente' });
-    } else {
-      // Insertar nuevo
-      await pool.query(
-        `INSERT INTO aa_menu_productos
-         (cliente_id, cliente_slug, nombre_producto, descripcion, categoria, precio, visible, fecha_creacion)
-         VALUES (?, ?, ?, ?, ?, ?, 1, NOW())`,
-        [cliente_id, slug, nombre, descripcion, categoria, precio]
-      );
-      res.json({ mensaje: 'Producto creado correctamente' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al guardar producto' });
-  }
-});
-
-// Eliminar producto
-app.delete('/productos/:id', async (req, res) => {
+// ✅ Ruta: Obtener producto por ID (necesaria para Editar)
+app.get("/productos/:id", async (req, res) => {
   const { id } = req.params;
-  const { slug } = req.query;
+  try {
+    const [rows] = await pool.query("SELECT * FROM aa_menu_productos WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Error al obtener producto:", error);
+    res.status(500).json({ error: "Error al obtener producto" });
+  }
+});
 
-  if (!slug) return res.status(400).json({ error: 'Falta el parámetro slug' });
+// Ruta: Crear producto
+app.post("/productos", async (req, res) => {
+  const {
+    nombre_producto,
+    precio,
+    descripcion,
+    categoria,
+    cliente_slug,
+    precio_chico,
+    precio_grande,
+    visible,
+    subcategoria_tipo_id,
+    bodega_id,
+  } = req.body;
 
   try {
-    const [cliente] = await pool.query(
-      "SELECT id FROM aa_clientes_autorizados WHERE cliente_slug = ?",
-      [slug]
+    const [result] = await pool.query(
+      `INSERT INTO aa_menu_productos 
+       (nombre_producto, precio, descripcion, categoria, cliente_slug, precio_chico, precio_grande, visible, subcategoria_tipo_id, bodega_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        nombre_producto,
+        precio,
+        descripcion,
+        categoria,
+        cliente_slug,
+        precio_chico,
+        precio_grande,
+        visible,
+        subcategoria_tipo_id,
+        bodega_id,
+      ]
     );
-    if (cliente.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    res.json({ id: result.insertId });
+  } catch (error) {
+    console.error("Error al insertar producto:", error);
+    res.status(500).json({ error: "Error al insertar producto" });
+  }
+});
 
-    await pool.query("DELETE FROM aa_menu_productos WHERE id = ? AND cliente_slug = ?", [id, slug]);
+// Ruta: Eliminar producto
+app.delete("/productos/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM aa_menu_productos WHERE id = ?", [id]);
+    res.sendStatus(204);
+  } catch (error) {
+    console.error("Error al eliminar producto:", error);
+    res.status(500).json({ error: "Error al eliminar producto" });
+  }
+});
+
+// Ruta: Editar producto
+app.put("/productos/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    nombre_producto,
+    precio,
+    descripcion,
+    categoria,
+    cliente_slug,
+    precio_chico,
+    precio_grande,
+    visible,
+    subcategoria_tipo_id,
+    bodega_id,
+  } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE aa_menu_productos 
+       SET nombre_producto = ?, precio = ?, descripcion = ?, categoria = ?, cliente_slug = ?, 
+           precio_chico = ?, precio_grande = ?, visible = ?, subcategoria_tipo_id = ?, bodega_id = ?
+       WHERE id = ?`,
+      [
+        nombre_producto,
+        precio,
+        descripcion,
+        categoria,
+        cliente_slug,
+        precio_chico,
+        precio_grande,
+        visible,
+        subcategoria_tipo_id,
+        bodega_id,
+        id,
+      ]
+    );
     res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error al eliminar producto' });
+  } catch (error) {
+    console.error("Error al actualizar producto:", error);
+    res.status(500).json({ error: "Error al actualizar producto" });
   }
 });
 
