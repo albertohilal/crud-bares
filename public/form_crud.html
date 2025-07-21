@@ -1,165 +1,181 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CRUD Productos</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+  <meta charset="UTF-8">
+  <title>Gestión de Productos</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="container mt-4">
-  <h2 class="mb-4 text-center">Formulario de Productos</h2>
+<body class="container my-4">
+  <h2 class="mb-4">Gestión de Productos</h2>
 
-  <form id="productoForm">
-    <input type="hidden" id="productoId">
-
-    <div class="mb-3">
-      <label for="nombre" class="form-label">Nombre del producto</label>
-      <input type="text" id="nombre" class="form-control" required>
+  <form id="productoForm" class="row g-3 mb-5">
+    <div class="col-md-4">
+      <label for="nombre_producto" class="form-label">Nombre del producto</label>
+      <input type="text" class="form-control" id="nombre_producto" required>
     </div>
-
-    <div class="mb-3">
-      <label for="precio" class="form-label">Precio</label>
-      <input type="number" id="precio" class="form-control" step="0.01" required>
-    </div>
-
-    <div class="mb-3">
+    <div class="col-md-4">
       <label for="descripcion" class="form-label">Descripción</label>
-      <input type="text" id="descripcion" class="form-control">
+      <input type="text" class="form-control" id="descripcion">
     </div>
-
-    <div class="mb-3">
+    <div class="col-md-2">
+      <label for="precio" class="form-label">Precio</label>
+      <input type="number" class="form-control" id="precio" step="0.01">
+    </div>
+    <div class="col-md-3">
       <label for="categoria" class="form-label">Categoría</label>
-      <select class="form-select" id="categoria" required>
-        <option value="">-- Seleccionar --</option>
-      </select>
+      <select id="categoria" class="form-select"></select>
     </div>
-
-    <div class="mb-3">
+    <div class="col-md-3">
       <label for="bodega" class="form-label">Bodega</label>
-      <select class="form-select" id="bodega">
-        <option value="">-- Seleccionar --</option>
+      <select id="bodega" class="form-select">
+        <option value="">-</option>
       </select>
     </div>
-
-    <div class="mb-3">
+    <div class="col-md-3">
       <label for="subtipo" class="form-label">Subtipo de Vino</label>
-      <select class="form-select" id="subtipo">
-        <option value="">-- Seleccionar --</option>
+      <select id="subtipo" class="form-select">
+        <option value="">-</option>
       </select>
     </div>
-
-    <button type="submit" class="btn btn-primary">Guardar</button>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
   </form>
 
-  <hr>
-
-  <h4 class="mt-5">Listado de Productos</h4>
-  <table class="table table-striped">
-    <thead>
+  <table class="table table-bordered" id="tabla-productos">
+    <thead class="table-dark">
       <tr>
-        <th>ID</th><th>Nombre</th><th>Categoría</th><th>Bodega</th><th>Subtipo</th><th>Precio</th><th>Acciones</th>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Categoría</th>
+        <th>Bodega</th>
+        <th>Subtipo</th>
+        <th>Precio</th>
+        <th>Acciones</th>
       </tr>
     </thead>
-    <tbody id="productosBody"></tbody>
+    <tbody></tbody>
   </table>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const slug = urlParams.get("slug");
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get("slug");
+    if (!slug) alert("Falta el parámetro slug en la URL");
 
-    async function cargarSelect(url, selectId, valueField, textField) {
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const select = document.getElementById(selectId);
-        select.innerHTML = `<option value="">-- Seleccionar --</option>`;
-        data.forEach(item => {
-          const opt = document.createElement("option");
-          opt.value = item[valueField];
-          opt.textContent = item[textField];
-          select.appendChild(opt);
-        });
-      } catch (err) {
-        console.error(`Error al cargar ${selectId}:`, err);
-      }
+    let idEnEdicion = null;
+
+    async function cargarCategorias() {
+      const res = await fetch("/categorias");
+      const data = await res.json();
+      const select = document.getElementById("categoria");
+      select.innerHTML = "";
+      data.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat.id;
+        option.textContent = cat.nombre;
+        select.appendChild(option);
+      });
     }
 
-    async function listarProductos() {
-      const res = await fetch(`/productos?slug=${slug}`);
+    async function cargarBodegas() {
+      const res = await fetch("/bodegas");
+      const data = await res.json();
+      const select = document.getElementById("bodega");
+      select.innerHTML = "<option value=''>-</option>";
+      data.forEach(b => {
+        const option = document.createElement("option");
+        option.value = b.id;
+        option.textContent = b.nombre;
+        select.appendChild(option);
+      });
+    }
+
+    async function cargarSubtipos() {
+      const res = await fetch("/subtipos-vino");
+      const data = await res.json();
+      const select = document.getElementById("subtipo");
+      select.innerHTML = "<option value=''>-</option>";
+      data.forEach(s => {
+        const option = document.createElement("option");
+        option.value = s.id;
+        option.textContent = s.nombre;
+        select.appendChild(option);
+      });
+    }
+
+    async function cargarProductos() {
+      const res = await fetch(`/productos/${slug}`);
       const productos = await res.json();
-      const tbody = document.getElementById("productosBody");
+      const tbody = document.querySelector("#tabla-productos tbody");
       tbody.innerHTML = "";
-      productos.forEach(p => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${p.id}</td>
-          <td>${p.nombre_producto}</td>
-          <td>${p.categoria || "-"}</td>
-          <td>${p.bodega_id || "-"}</td>
-          <td>${p.subcategoria_tipo_id || "-"}</td>
-          <td>$${parseFloat(p.precio).toFixed(2)}</td>
+      productos.forEach(prod => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${prod.id}</td>
+          <td>${prod.nombre_producto}</td>
+          <td>${prod.categoria || "-"}</td>
+          <td>${prod.nombre_bodega || "-"}</td>
+          <td>${prod.nombre_subtipo || "-"}</td>
+          <td>$${parseFloat(prod.precio || 0).toFixed(2)}</td>
           <td>
-            <button class="btn btn-sm btn-warning me-1" onclick="editarProducto(${p.id})">Editar</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${p.id})">Eliminar</button>
+            <button class="btn btn-warning btn-sm me-1" onclick="editarProducto(${prod.id})">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${prod.id})">Eliminar</button>
           </td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(tr);
       });
     }
 
     async function editarProducto(id) {
-      const res = await fetch(`/productos/${id}`);
+      const res = await fetch(`/producto?id=${id}`);
       const p = await res.json();
-      document.getElementById("productoId").value = p.id;
-      document.getElementById("nombre").value = p.nombre_producto;
-      document.getElementById("precio").value = p.precio;
+      document.getElementById("nombre_producto").value = p.nombre_producto || "";
       document.getElementById("descripcion").value = p.descripcion || "";
+      document.getElementById("precio").value = p.precio || "";
       document.getElementById("categoria").value = p.categoria || "";
       document.getElementById("bodega").value = p.bodega_id || "";
       document.getElementById("subtipo").value = p.subcategoria_tipo_id || "";
+      idEnEdicion = id;
     }
 
     async function eliminarProducto(id) {
-      if (!confirm("¿Eliminar este producto?")) return;
-      await fetch(`/productos/${id}`, { method: "DELETE" });
-      listarProductos();
+      if (confirm("¿Eliminar este producto?")) {
+        await fetch(`/producto?id=${id}`, { method: "DELETE" });
+        await cargarProductos();
+      }
     }
 
     document.getElementById("productoForm").addEventListener("submit", async e => {
       e.preventDefault();
-      const id = document.getElementById("productoId").value;
-
-      const producto = {
-        nombre_producto: document.getElementById("nombre").value,
-        precio: parseFloat(document.getElementById("precio").value),
+      const data = {
+        nombre_producto: document.getElementById("nombre_producto").value,
         descripcion: document.getElementById("descripcion").value,
+        precio: parseFloat(document.getElementById("precio").value),
         categoria: document.getElementById("categoria").value,
+        bodega_id: document.getElementById("bodega").value,
+        subcategoria_tipo_id: document.getElementById("subtipo").value,
         cliente_slug: slug,
-        precio_chico: null,
-        precio_grande: null,
-        visible: 1,
-        subcategoria_tipo_id: document.getElementById("subtipo").value || null,
-        bodega_id: document.getElementById("bodega").value || null,
       };
-
-      const metodo = id ? "PUT" : "POST";
-      const url = id ? `/productos/${id}` : "/productos";
-
+      const url = idEnEdicion ? `/producto?id=${idEnEdicion}` : "/producto";
+      const method = idEnEdicion ? "PUT" : "POST";
       await fetch(url, {
-        method: metodo,
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(producto),
+        body: JSON.stringify(data),
       });
-
-      document.getElementById("productoForm").reset();
-      document.getElementById("productoId").value = "";
-      listarProductos();
+      e.target.reset();
+      idEnEdicion = null;
+      await cargarProductos();
     });
 
-    cargarSelect("/categorias", "categoria", "nombre", "nombre");
-    cargarSelect("/bodegas", "bodega", "id", "nombre");
-    cargarSelect("/subtipos", "subtipo", "id", "nombre");
-    listarProductos();
+    window.addEventListener("DOMContentLoaded", async () => {
+      await Promise.all([
+        cargarCategorias(),
+        cargarBodegas(),
+        cargarSubtipos(),
+        cargarProductos()
+      ]);
+    });
   </script>
 </body>
 </html>

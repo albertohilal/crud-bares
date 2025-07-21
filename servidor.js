@@ -24,10 +24,10 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
 });
 
-// Ruta: Categorías
+// Obtener categorías
 app.get("/categorias", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias");
+    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias WHERE visible = 1 ORDER BY orden");
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener categorías:", error);
@@ -35,10 +35,10 @@ app.get("/categorias", async (req, res) => {
   }
 });
 
-// Ruta: Bodegas
+// Obtener bodegas
 app.get("/bodegas", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM aa_bodegas");
+    const [rows] = await pool.query("SELECT * FROM aa_bodegas ORDER BY nombre");
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener bodegas:", error);
@@ -46,25 +46,38 @@ app.get("/bodegas", async (req, res) => {
   }
 });
 
-// Ruta: Subtipos
-app.get("/subtipos", async (req, res) => {
+// Obtener subtipos de vino
+app.get("/subtipos-vino", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM aa_subtipos_vino");
+    const [rows] = await pool.query("SELECT * FROM aa_subtipos_vino ORDER BY orden");
     res.json(rows);
   } catch (error) {
-    console.error("Error al obtener subtipos:", error);
-    res.status(500).json({ error: "Error al obtener subtipos" });
+    console.error("Error al obtener subtipos de vino:", error);
+    res.status(500).json({ error: "Error al obtener subtipos de vino" });
   }
 });
 
-// Ruta: Listar productos por slug
-app.get("/productos", async (req, res) => {
-  const slug = req.query.slug;
+// Obtener productos por cliente_slug
+app.get("/productos/:slug", async (req, res) => {
+  const slug = req.params.slug;
   try {
-    const [rows] = await pool.query(
-      "SELECT * FROM aa_menu_productos WHERE cliente_slug = ?",
-      [slug]
-    );
+    const [rows] = await pool.query(`
+      SELECT 
+        p.id,
+        p.nombre_producto,
+        p.descripcion,
+        p.precio,
+        p.categoria,
+        p.bodega_id,
+        p.subcategoria_tipo_id,
+        b.nombre AS nombre_bodega,
+        s.nombre AS nombre_subtipo
+      FROM aa_menu_productos p
+      LEFT JOIN aa_bodegas b ON p.bodega_id = b.id
+      LEFT JOIN aa_subtipos_vino s ON p.subcategoria_tipo_id = s.id
+      WHERE p.cliente_slug = ?
+      ORDER BY p.categoria DESC
+    `, [slug]);
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener productos:", error);
@@ -72,117 +85,113 @@ app.get("/productos", async (req, res) => {
   }
 });
 
-// ✅ Ruta: Obtener producto por ID (necesaria para Editar)
-app.get("/productos/:id", async (req, res) => {
-  const { id } = req.params;
+// Obtener un producto por ID
+app.get("/producto", async (req, res) => {
+  const id = req.query.id;
+  if (!id) return res.status(400).json({ error: "Falta el parámetro id" });
+
   try {
     const [rows] = await pool.query("SELECT * FROM aa_menu_productos WHERE id = ?", [id]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Producto no encontrado" });
-    }
+    if (rows.length === 0) return res.status(404).json({ error: "Producto no encontrado" });
     res.json(rows[0]);
   } catch (error) {
-    console.error("Error al obtener producto:", error);
+    console.error("Error al obtener producto por ID:", error);
     res.status(500).json({ error: "Error al obtener producto" });
   }
 });
 
-// Ruta: Crear producto
-app.post("/productos", async (req, res) => {
+// Crear nuevo producto
+app.post("/producto", async (req, res) => {
   const {
     nombre_producto,
-    precio,
     descripcion,
+    precio,
     categoria,
-    cliente_slug,
-    precio_chico,
-    precio_grande,
-    visible,
-    subcategoria_tipo_id,
     bodega_id,
+    subcategoria_tipo_id,
+    cliente_slug
   } = req.body;
 
   try {
-    const [result] = await pool.query(
-      `INSERT INTO aa_menu_productos 
-       (nombre_producto, precio, descripcion, categoria, cliente_slug, precio_chico, precio_grande, visible, subcategoria_tipo_id, bodega_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nombre_producto,
-        precio,
-        descripcion,
-        categoria,
-        cliente_slug,
-        precio_chico,
-        precio_grande,
-        visible,
-        subcategoria_tipo_id,
-        bodega_id,
-      ]
-    );
-    res.json({ id: result.insertId });
+    const [result] = await pool.query(`
+      INSERT INTO aa_menu_productos 
+        (nombre_producto, descripcion, precio, categoria, bodega_id, subcategoria_tipo_id, cliente_slug, visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    `, [
+      nombre_producto,
+      descripcion,
+      precio,
+      categoria,
+      bodega_id || null,
+      subcategoria_tipo_id || null,
+      cliente_slug
+    ]);
+
+    res.json({ mensaje: "Producto creado", id: result.insertId });
   } catch (error) {
-    console.error("Error al insertar producto:", error);
-    res.status(500).json({ error: "Error al insertar producto" });
+    console.error("Error al crear producto:", error);
+    res.status(500).json({ error: "Error al crear producto" });
   }
 });
 
-// Ruta: Eliminar producto
-app.delete("/productos/:id", async (req, res) => {
-  const { id } = req.params;
-  try {
-    await pool.query("DELETE FROM aa_menu_productos WHERE id = ?", [id]);
-    res.sendStatus(204);
-  } catch (error) {
-    console.error("Error al eliminar producto:", error);
-    res.status(500).json({ error: "Error al eliminar producto" });
-  }
-});
-
-// Ruta: Editar producto
-app.put("/productos/:id", async (req, res) => {
-  const { id } = req.params;
+// Actualizar producto existente
+app.put("/producto", async (req, res) => {
+  const id = req.query.id;
   const {
     nombre_producto,
-    precio,
     descripcion,
+    precio,
     categoria,
-    cliente_slug,
-    precio_chico,
-    precio_grande,
-    visible,
-    subcategoria_tipo_id,
     bodega_id,
+    subcategoria_tipo_id,
+    cliente_slug
   } = req.body;
 
   try {
-    await pool.query(
-      `UPDATE aa_menu_productos 
-       SET nombre_producto = ?, precio = ?, descripcion = ?, categoria = ?, cliente_slug = ?, 
-           precio_chico = ?, precio_grande = ?, visible = ?, subcategoria_tipo_id = ?, bodega_id = ?
-       WHERE id = ?`,
-      [
-        nombre_producto,
-        precio,
-        descripcion,
-        categoria,
-        cliente_slug,
-        precio_chico,
-        precio_grande,
-        visible,
-        subcategoria_tipo_id,
-        bodega_id,
-        id,
-      ]
-    );
-    res.sendStatus(200);
+    const [result] = await pool.query(`
+      UPDATE aa_menu_productos SET
+        nombre_producto = ?,
+        descripcion = ?,
+        precio = ?,
+        categoria = ?,
+        bodega_id = ?,
+        subcategoria_tipo_id = ?,
+        cliente_slug = ?
+      WHERE id = ?
+    `, [
+      nombre_producto,
+      descripcion,
+      precio,
+      categoria,
+      bodega_id || null,
+      subcategoria_tipo_id || null,
+      cliente_slug,
+      id
+    ]);
+
+    res.json({ mensaje: "Producto actualizado", actualizado: result.affectedRows });
   } catch (error) {
     console.error("Error al actualizar producto:", error);
     res.status(500).json({ error: "Error al actualizar producto" });
   }
 });
 
+// Eliminar producto
+app.delete("/producto", async (req, res) => {
+  const id = req.query.id;
+  if (!id) return res.status(400).json({ error: "Falta el parámetro id" });
+
+  try {
+    const [result] = await pool.query("DELETE FROM aa_menu_productos WHERE id = ?", [id]);
+    res.json({ mensaje: "Producto eliminado", eliminados: result.affectedRows });
+  } catch (error) {
+    console.error("Error al eliminar producto:", error);
+    res.status(500).json({ error: "Error al eliminar producto" });
+  }
+});
+
+// Servidor activo
 const PORT = process.env.PORT || 3011;
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
