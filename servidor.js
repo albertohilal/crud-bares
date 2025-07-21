@@ -24,10 +24,10 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
 });
 
-// Obtener categorías
+// ✅ Obtener categorías ordenadas alfabéticamente
 app.get("/categorias", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias WHERE visible = 1 ORDER BY orden");
+    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias WHERE visible = 1 ORDER BY nombre ASC");
     res.json(rows);
   } catch (error) {
     console.error("Error al obtener categorías:", error);
@@ -35,7 +35,6 @@ app.get("/categorias", async (req, res) => {
   }
 });
 
-// Obtener bodegas
 app.get("/bodegas", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM aa_bodegas ORDER BY nombre");
@@ -46,7 +45,6 @@ app.get("/bodegas", async (req, res) => {
   }
 });
 
-// Obtener subtipos de vino
 app.get("/subtipos-vino", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM aa_subtipos_vino ORDER BY orden");
@@ -57,7 +55,6 @@ app.get("/subtipos-vino", async (req, res) => {
   }
 });
 
-// Obtener productos por cliente_slug
 app.get("/productos/:slug", async (req, res) => {
   const slug = req.params.slug;
   try {
@@ -89,7 +86,6 @@ app.get("/productos/:slug", async (req, res) => {
   }
 });
 
-// Obtener un producto por ID
 app.get("/producto", async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).json({ error: "Falta el parámetro id" });
@@ -104,7 +100,6 @@ app.get("/producto", async (req, res) => {
   }
 });
 
-// Crear nuevo producto
 app.post("/producto", async (req, res) => {
   const {
     nombre_producto,
@@ -142,7 +137,6 @@ app.post("/producto", async (req, res) => {
   }
 });
 
-// Actualizar producto existente
 app.put("/producto", async (req, res) => {
   const id = req.query.id;
   const {
@@ -190,7 +184,6 @@ app.put("/producto", async (req, res) => {
   }
 });
 
-// Eliminar producto
 app.delete("/producto", async (req, res) => {
   const id = req.query.id;
   if (!id) return res.status(400).json({ error: "Falta el parámetro id" });
@@ -204,7 +197,6 @@ app.delete("/producto", async (req, res) => {
   }
 });
 
-// Servidor activo
 const PORT = process.env.PORT || 3011;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
