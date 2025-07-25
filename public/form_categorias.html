@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Categorías</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+  thead.table-dark th {
+    position: sticky;
+    top: 260px; /* Ajustar según altura del formulario sticky */
+    z-index: 10;
+    background-color: #343a40 !important;
+    color: white;
+  }
+</style>
+
+</head>
+<body class="container my-4">
+  <h2 class="mb-4">Gestión de Categorías</h2>
+
+  <!-- FORMULARIO STICKY -->
+  <form id="categoriaForm" class="row g-3 mb-5 sticky-top bg-white p-3 border rounded shadow-sm">
+    <div class="col-md-4">
+      <label for="nombre_producto" class="form-label">Nombre del producto</label>
+      <input type="text" class="form-control" id="nombre_producto" required>
+    </div>
+    <div class="col-md-4">
+      <label for="descripcion" class="form-label">Descripción</label>
+      <input type="text" class="form-control" id="descripcion">
+    </div>
+    <div class="col-md-2">
+      <label for="precio" class="form-label">Precio</label>
+      <input type="number" class="form-control" id="precio" step="0.01">
+    </div>
+    <div class="col-md-2">
+      <label for="precio_chico" class="form-label">Precio Chico</label>
+      <input type="number" class="form-control" id="precio_chico" step="0.01">
+    </div>
+    <div class="col-md-2">
+      <label for="precio_grande" class="form-label">Precio Grande</label>
+      <input type="number" class="form-control" id="precio_grande" step="0.01">
+    </div>
+    <div class="col-md-3">
+      <label for="categoria" class="form-label">Categoría</label>
+      <select id="categoria" class="form-select"></select>
+    </div>
+    <div class="col-md-3">
+      <label for="bodega" class="form-label">Bodega</label>
+      <select id="bodega" class="form-select">
+        <option value="">-</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="subtipo" class="form-label">Subtipo de Vino</label>
+      <select id="subtipo" class="form-select">
+        <option value="">-</option>
+      </select>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+
+  <!-- TABLA -->
+  
+  <table class="table table-bordered" id="tabla-categorias">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Orden</th>
+        <th>Visible</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get("slug");
+    if (!slug) alert("Falta el parámetro slug en la URL");
+
+    let idEnEdicion = null;
+
+    async function cargarCategorias() {
+      const res = await fetch("/categorias");
+      const data = await res.json();
+      const select = document.getElementById("categoria");
+      select.innerHTML = "";
+      data.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat.id;
+        option.textContent = cat.nombre;
+        select.appendChild(option);
+      });
+    }
+
+    async function cargarBodegas() {
+      const res = await fetch("/bodegas");
+      const data = await res.json();
+      const select = document.getElementById("bodega");
+      select.innerHTML = "<option value=''>-</option>";
+      data.forEach(b => {
+        const option = document.createElement("option");
+        option.value = b.id;
+        option.textContent = b.nombre;
+        select.appendChild(option);
+      });
+    }
+
+    async function cargarSubtipos() {
+      const res = await fetch("/subtipos-vino");
+      const data = await res.json();
+      const select = document.getElementById("subtipo");
+      select.innerHTML = "<option value=''>-</option>";
+      data.forEach(s => {
+        const option = document.createElement("option");
+        option.value = s.id;
+        option.textContent = s.nombre;
+        select.appendChild(option);
+      });
+    }
+
+    async function cargarProductos() {
+      const res = await fetch(`/productos/${slug}`);
+      const productos = await res.json();
+      const tbody = document.querySelector("#tabla-productos tbody");
+      tbody.innerHTML = "";
+      productos.forEach(prod => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${prod.id}</td>
+          <td>${prod.nombre_producto}</td>
+          <td>${prod.nombre_categoria || "-"}</td>
+          <td>${prod.nombre_bodega || "-"}</td>
+          <td>${prod.nombre_subtipo || "-"}</td>
+          <td>$${parseFloat(prod.precio || 0).toFixed(2)}</td>
+          <td>$${parseFloat(prod.precio_chico || 0).toFixed(2)}</td>
+          <td>$${parseFloat(prod.precio_grande || 0).toFixed(2)}</td>
+          <td>
+            <button class="btn btn-warning btn-sm me-1" onclick="editarProducto(${prod.id})">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="eliminarProducto(${prod.id})">Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function editarProducto(id) {
+      const res = await fetch(`/producto?id=${id}`);
+      const p = await res.json();
+      document.getElementById("nombre_producto").value = p.nombre_producto || "";
+      document.getElementById("descripcion").value = p.descripcion || "";
+      document.getElementById("precio").value = p.precio || "";
+      document.getElementById("precio_chico").value = p.precio_chico || "";
+      document.getElementById("precio_grande").value = p.precio_grande || "";
+      document.getElementById("categoria").value = p.categoria || "";
+      document.getElementById("bodega").value = p.bodega_id || "";
+      document.getElementById("subtipo").value = p.subcategoria_tipo_id || "";
+      idEnEdicion = id;
+    }
+
+    async function eliminarProducto(id) {
+      if (confirm("¿Eliminar este producto?")) {
+        await fetch(`/producto?id=${id}`, { method: "DELETE" });
+        await cargarProductos();
+      }
+    }
+
+    document.getElementById("categoriaForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const data = {
+        nombre_producto: document.getElementById("nombre_producto").value,
+        descripcion: document.getElementById("descripcion").value,
+        precio: parseFloat(document.getElementById("precio").value),
+        precio_chico: parseFloat(document.getElementById("precio_chico").value),
+        precio_grande: parseFloat(document.getElementById("precio_grande").value),
+        categoria: document.getElementById("categoria").value,
+        bodega_id: document.getElementById("bodega").value,
+        subcategoria_tipo_id: document.getElementById("subtipo").value,
+        cliente_slug: slug,
+      };
+      const url = idEnEdicion ? `/producto?id=${idEnEdicion}` : "/producto";
+      const method = idEnEdicion ? "PUT" : "POST";
+      await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      e.target.reset();
+      idEnEdicion = null;
+      await cargarProductos();
+    });
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      await Promise.all([
+        cargarCategorias(),
+        cargarBodegas(),
+        cargarSubtipos(),
+        cargarProductos()
+      ]);
+    });
+  </script>
+</body>
+</html>

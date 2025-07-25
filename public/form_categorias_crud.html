@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestión de Categorías</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+  <h1 class="mb-4">Gestión de Categorías</h1>
+
+  <!-- Formulario -->
+  <form id="categoriaForm" class="row g-3 mb-5 sticky-top bg-white p-3 border rounded shadow-sm">
+    <input type="hidden" id="categoriaId">
+    <div class="col-md-6">
+      <label for="nombre" class="form-label">Nombre de la categoría</label>
+      <input type="text" class="form-control" id="nombre" required>
+    </div>
+    <div class="col-md-3">
+      <label for="orden" class="form-label">Orden</label>
+      <input type="number" class="form-control" id="orden">
+    </div>
+    <div class="col-md-3">
+      <label for="visible" class="form-label">Visible</label>
+      <select id="visible" class="form-select">
+        <option value="1">Sí</option>
+        <option value="0">No</option>
+      </select>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+
+  <!-- Tabla -->
+  <table class="table table-bordered" id="tabla-categorias">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Orden</th>
+        <th>Visible</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const API_URL = "http://localhost:3011";
+
+    const tabla = document.querySelector("#tabla-categorias tbody");
+    const form = document.getElementById("categoriaForm");
+
+    const categoriaId = document.getElementById("categoriaId");
+    const nombre = document.getElementById("nombre");
+    const orden = document.getElementById("orden");
+    const visible = document.getElementById("visible");
+
+    function cargarCategorias() {
+      fetch(API_URL + "/categorias/todas")
+        .then(res => res.json())
+        .then(data => {
+          tabla.innerHTML = "";
+          data.forEach(cat => {
+            const fila = document.createElement("tr");
+            fila.innerHTML = `
+              <td>${cat.id}</td>
+              <td>${cat.nombre}</td>
+              <td>${cat.orden}</td>
+              <td>${cat.visible ? "Sí" : "No"}</td>
+              <td>
+                <button class="btn btn-sm btn-warning" onclick='editar(${JSON.stringify(cat)})'>Editar</button>
+                <button class="btn btn-sm btn-danger" onclick="eliminar(${cat.id})">Eliminar</button>
+              </td>
+            `;
+            tabla.appendChild(fila);
+          });
+        });
+    }
+
+    function editar(cat) {
+      categoriaId.value = cat.id;
+      nombre.value = cat.nombre;
+      orden.value = cat.orden;
+      visible.value = cat.visible;
+    }
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const datos = {
+        nombre: nombre.value,
+        orden: orden.value,
+        visible: visible.value
+      };
+      const metodo = categoriaId.value ? "PUT" : "POST";
+      const url = categoriaId.value
+        ? API_URL + "/categoria?id=" + categoriaId.value
+        : API_URL + "/categoria";
+
+      fetch(url, {
+        method: metodo,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
+      })
+      .then(res => res.json())
+      .then(() => {
+        form.reset();
+        categoriaId.value = "";
+        cargarCategorias();
+      });
+    });
+
+    function eliminar(id) {
+      if (!confirm("¿Eliminar esta categoría?")) return;
+      fetch(API_URL + "/categoria?id=" + id, { method: "DELETE" })
+        .then(res => res.json())
+        .then(() => cargarCategorias());
+    }
+
+    cargarCategorias();
+  </script>
+</body>
+</html>

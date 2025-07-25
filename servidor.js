@@ -24,7 +24,58 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
 });
 
-// ✅ Obtener categorías ordenadas alfabéticamente
+// ✅ RUTAS PARA CATEGORÍAS
+app.get("/categorias/todas", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM aa_menu_categorias ORDER BY orden, nombre");
+    res.json(rows);
+  } catch (error) {
+    console.error("Error al obtener categorías:", error);
+    res.status(500).json({ error: "Error al obtener categorías" });
+  }
+});
+
+app.post("/categoria", async (req, res) => {
+  const { nombre, orden, visible } = req.body;
+  try {
+    const [result] = await pool.query(
+      "INSERT INTO aa_menu_categorias (nombre, orden, visible) VALUES (?, ?, ?)",
+      [nombre, orden || 0, visible || 1]
+    );
+    res.json({ mensaje: "Categoría creada", id: result.insertId });
+  } catch (error) {
+    console.error("Error al crear categoría:", error);
+    res.status(500).json({ error: "Error al crear categoría" });
+  }
+});
+
+app.put("/categoria", async (req, res) => {
+  const id = req.query.id;
+  const { nombre, orden, visible } = req.body;
+  try {
+    const [result] = await pool.query(
+      "UPDATE aa_menu_categorias SET nombre = ?, orden = ?, visible = ? WHERE id = ?",
+      [nombre, orden || 0, visible || 1, id]
+    );
+    res.json({ mensaje: "Categoría actualizada", actualizado: result.affectedRows });
+  } catch (error) {
+    console.error("Error al actualizar categoría:", error);
+    res.status(500).json({ error: "Error al actualizar categoría" });
+  }
+});
+
+app.delete("/categoria", async (req, res) => {
+  const id = req.query.id;
+  try {
+    const [result] = await pool.query("DELETE FROM aa_menu_categorias WHERE id = ?", [id]);
+    res.json({ mensaje: "Categoría eliminada", eliminados: result.affectedRows });
+  } catch (error) {
+    console.error("Error al eliminar categoría:", error);
+    res.status(500).json({ error: "Error al eliminar categoría" });
+  }
+});
+
+// ✅ RUTAS EXISTENTES DE PRODUCTOS
 app.get("/categorias", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT * FROM aa_menu_categorias WHERE visible = 1 ORDER BY nombre ASC");
