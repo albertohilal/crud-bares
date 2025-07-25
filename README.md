@@ -19,7 +19,8 @@ Este proyecto permite a bares o comercios gestionar su menú de productos median
 crud-bares/
 ├── public/
 │ ├── login.html # Formulario de ingreso con token
-│ └── form_crud.html # Interfaz CRUD para productos
+│ ├── form_crud.html # Interfaz CRUD para productos
+│ └── form_crud_filtros.html # Versión con filtros por nombre y categoría
 ├── servidor.js # Backend Express
 ├── .env # Variables de entorno (NO subir a GitHub)
 ├── .gitignore # Archivos ignorados por Git
@@ -76,7 +77,9 @@ token-nocturno-123
 Este token debe estar en la tabla aa_clientes_autorizados con activo = 1.
 
 🧠 Funcionalidades
-Agregar, ver y eliminar productos
+Agregar, ver, editar y eliminar productos
+
+Filtro por categoría y nombre de producto
 
 Cada cliente ve solo sus productos
 
@@ -86,10 +89,12 @@ Interfaz responsive y usable
 
 Backend protegido por token
 
+Modo filtros: form_crud_filtros.html
+
 📌 Notas
 El archivo .env está excluido del repositorio por seguridad.
 
-Si querés extender el CRUD con edición o subida de imágenes, podés agregar campos al formulario y manejar archivos con multer.
+Para extender el CRUD con edición de imágenes, podés usar multer en el backend.
 
 📄 Licencia
 MIT – Libre para usar, modificar y mejorar.
