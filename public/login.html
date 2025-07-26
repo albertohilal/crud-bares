@@ -14,6 +14,16 @@
           <label for="token" class="form-label">Token de acceso</label>
           <input type="text" id="token" class="form-control" required />
         </div>
+        <div class="mb-3">
+          <label for="slug" class="form-label">Seleccionar cliente (slug)</label>
+          <select id="slug" class="form-select" required>
+            <option value="">Seleccionar...</option>
+            <option value="nocturno">Nocturno</option>
+            <option value="baresur">Bar Sur</option>
+            <option value="testcliente">Test Cliente</option>
+            <!-- Agregá aquí más opciones si necesitás -->
+          </select>
+        </div>
         <button type="submit" class="btn btn-primary w-100">Ingresar</button>
       </form>
     </div>
@@ -23,8 +33,15 @@
     function guardarToken(event) {
       event.preventDefault();
       const token = document.getElementById('token').value.trim();
+      const slug = document.getElementById('slug').value.trim();
+
+      if (!slug) {
+        alert("Por favor, seleccioná un cliente.");
+        return;
+      }
+
       localStorage.setItem('token', token);
-      window.location.href = 'form_crud.html';
+      window.location.href = `form_crud_filtros.html?slug=${encodeURIComponent(slug)}`;
     }
   </script>
 </body>
